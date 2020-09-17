@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-model href="../../protogenie/schema.rng" schematypens="http://relaxng.org/ns/structure/1.0"?>
+<config>
+    <output column_marker="TAB">
+        <header name="order">
+            <key>token</key>
+            <key>lemma</key>
+            <key>pos</key>
+        </header>
+    </output>
+    <postprocessing>
+        <capitalize column-token="token">
+            <first-word when="always">
+                <sentence-marker name="empty_line"/>
+            </first-word>
+            <first-letters when="never"/>
+        </capitalize>
+    </postprocessing>
+    <default-header>
+        <header type="order">
+            <key map-to="token">2</key>
+            <key map-to="lemma">0</key>
+            <key map-to="POS">1</key>
+        </header>
+    </default-header>
+    <corpora>
+        <corpus path="../test_data/capitalize.tsv" column_marker="TAB">
+            <splitter name="empty_line"/>
+            <header type="default" />
+        </corpus>
+    </corpora>
+</config>

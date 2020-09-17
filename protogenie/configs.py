@@ -5,13 +5,13 @@ from copy import deepcopy
 
 from .splitters import RegExpSplitter, LineSplitter, TokenWindowSplitter, FileSplitter, _SplitterPrototype
 from .reader import Reader
-from .postprocessing import Disambiguation, ReplacementSet, Skip, PostProcessing, Clitic
+from .postprocessing import Disambiguation, ReplacementSet, Skip, PostProcessing, Clitic, Capitalize
 from .toolbox import RomanNumeral
 import datetime
 from dataclasses import dataclass
 Splitter = Type[_SplitterPrototype]
 
-PostProcessingClasses = [Disambiguation, ReplacementSet, Skip, RomanNumeral, Clitic]
+PostProcessingClasses = [Disambiguation, ReplacementSet, Skip, RomanNumeral, Clitic, Capitalize]
 
 
 @dataclass

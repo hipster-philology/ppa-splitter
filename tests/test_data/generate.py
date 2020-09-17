@@ -1,6 +1,20 @@
 import random
 import string
 
+# Change one variable to regenerate a test file
+generate_implicit = False
+generate_clitics = False
+generate_roman = False
+generate_skip = False
+generate_replacement = False
+generate_disambiguation = False
+generate_file = False
+generate_empty_line = False
+generate_sentence = False
+generate_window = False
+generate_capitalize = False
+generate_generic = True
+
 ROMAN_NUMERAL_TABLE = [
     ("M", 1000), ("CM", 900), ("D", 500),
     ("CD", 400), ("C", 100),  ("XC", 90),
@@ -27,9 +41,9 @@ def randomString(start: str = "", length: int = 10) -> str:
     letters = string.ascii_lowercase
     return start+''.join(random.choice(letters) for i in range(length-len(start)))
 
-# I am using different numbers of sequence size to be sure tests are not being right on another corpus
 
-if False:  # Make false to remove running
+# I am using different numbers of sequence size to be sure tests are not being right on another corpus
+if generate_window:  # Make false to remove running
     with open("window.tsv", "w") as f:
         f.write("lem\tpos\ttok\n")
         for lines in range(200):
@@ -39,7 +53,7 @@ if False:  # Make false to remove running
                 rand3=randomString(start="tok_", length=10)
             ))
 
-if False:
+if generate_sentence:
     with open("sentence.tsv", "w") as f:
         f.write("lem\tpos\ttok\n")
         for lines in range(190):
@@ -52,7 +66,8 @@ if False:
                     rand3=randomString(start="tok_", length=10)
                 ))
 
-if False:
+
+if generate_empty_line:
     with open("empty_line.tsv", "w") as f:
         f.write("lem\tpos\ttok\n")
         for lines in range(180):
@@ -64,7 +79,7 @@ if False:
             if (lines + 1) % 18 == 0:
                 f.write("\n")
 
-if False:
+if generate_file:
     with open("file.tsv", "w") as f:
         f.write("lem\tpos\ttok\n")
         for lines in range(170):
@@ -74,7 +89,7 @@ if False:
                 rand3=randomString(start="tok_", length=10)
             ))
 
-if False:
+if generate_implicit:
     with open("implicit.tsv", "w") as f:
         for lines in range(160):
             f.write("{rand1}\t{rand2}\t{rand3}\n".format(
@@ -83,7 +98,8 @@ if False:
                 rand3=randomString(start="tok_", length=10)
             ))
 
-if False:
+
+if generate_disambiguation:
     with open("disambiguation.tsv", "w") as f:
         for lines in range(150):
             f.write("{rand1}\t{rand2}\t{rand3}\n".format(
@@ -92,7 +108,7 @@ if False:
                 rand3=randomString(start="tok_", length=10)+str(random.randint(0, 10))
             ))
 
-if False:
+if generate_replacement:
     at_least_one_zero = False
     at_least_one_one = False
     with open("replacement.tsv", "w") as f:
@@ -118,7 +134,7 @@ if False:
                     rand3=randomString(start="tok_", length=10)
                 ))
 
-if False:
+if generate_skip:
     at_least_one_zero = False
     at_least_one_one = False
     with open("skip.tsv", "w") as f:
@@ -146,7 +162,7 @@ if False:
                 f.write("\n")
 
 
-if False:
+if generate_roman:
     at_least_one_zero = False
     at_least_one_one = False
     with open("roman_numbers.tsv", "w") as f:
@@ -168,8 +184,7 @@ if False:
             if (lines + 1) % 10 == 0: # Window of 10...
                 f.write("\n")
 
-
-if True:
+if generate_clitics:
     with open("clitics.tsv", "w") as f:
         for lines in range(300):
             if (lines + 1) % 5 == 0:
@@ -181,5 +196,29 @@ if True:
                     rand3=randomString(start="tok_", length=10)
                 ))
 
-            if (lines + 1) % 10 == 0: # Window of 10...
+            if (lines + 1) % 10 == 0:  # Window of 10...
+                f.write("\n")
+
+if generate_capitalize:
+    with open("capitalize.tsv", "w") as f:
+        for lines in range(500):
+            f.write("{rand1}\t{rand2}\t{rand3}\n".format(
+                rand1=randomString(start="lem_", length=10),
+                rand2=randomString(start="pos_", length=10),
+                rand3=randomString(start="tok_", length=10)
+            ))
+
+            if (lines + 1) % 10 == 0:  # Window of 10...
+                f.write("\n")
+
+if generate_generic:
+    with open("generic.tsv", "w") as f:
+        for lines in range(500):
+            f.write("{rand1}\t{rand2}\t{rand3}\n".format(
+                rand1=randomString(start="lem_", length=10),
+                rand2=randomString(start="pos_", length=10),
+                rand3=randomString(start="tok_", length=10)
+            ))
+
+            if (lines + 1) % 10 == 0:  # Window of 10...
                 f.write("\n")

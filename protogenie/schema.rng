@@ -69,7 +69,25 @@
                 <zeroOrMore>
                     <ref name="clitic"/>
                 </zeroOrMore>
+                <optional>
+                    <ref name="unicode-normalization" />
+                </optional>
+                <optional><ref name="capitalize" /></optional>
             </interleave>
+        </element>
+    </define>
+    <define name="unicode-normalization">
+        <element name="unicode-normalization">
+            <optional>
+                <attribute name="type">
+                    <choice>
+                        <value type="string">NFD</value>
+                        <value type="string">NFKD</value>
+                        <value type="string">NFC</value>
+                        <value type="string">NFKC</value>
+                    </choice>
+                </attribute>
+            </optional>            
         </element>
     </define>
     <define name="clitic">
@@ -100,6 +118,65 @@
                     <text />
                 </element>
             </oneOrMore>
+        </element>
+    </define>
+    <define name="random-always-never-ratio">
+        <choice>
+            <attribute name="when">
+                <choice>
+                    <value>always</value>
+                    <value>never</value>
+                    <value>random</value>
+                </choice>
+            </attribute>
+            <interleave>
+                <attribute name="when">
+                    <choice>
+                        <value>ratio</value>
+                    </choice>
+                </attribute>
+                <attribute name="ratio">
+                    <a:documentation>Needs to be smaller or equal to 1</a:documentation>
+                    <data type="decimal"/>
+                </attribute>
+            </interleave>
+        </choice>
+    </define>
+    <define name="sentence-marker">
+        <a:documentation>A node for setting sentence recognition</a:documentation>
+        <element name="sentence-marker">
+            <choice>
+                <ref name="regexp-attribute-group" />
+                <group>
+                    <attribute name="name"><value>empty_line</value></attribute>
+                </group>
+            </choice>
+        </element>
+    </define>
+    <define name="capitalize">
+        <element name="capitalize">
+            <a:documentation>Define capitalization strategies</a:documentation>
+            <interleave>
+               <attribute name="column-token"><data type="string"/></attribute>
+               <optional><attribute name="column-lemma"><data type="string"/></attribute></optional>
+               <optional>
+                   <attribute name="caps-to-utf8-marker">
+                       <a:documentation>Convert capitals to lower-case + UTF8 marker. It inserts the 🨁 character after capitals (NEUTRAL CHESS QUEEN)</a:documentation>
+                       <data type="boolean"/>
+                   </attribute>
+               </optional>
+            </interleave>
+            <interleave>
+                <element name="first-word">
+                    <a:documentation>Capitalize first word</a:documentation>
+                    <ref name="random-always-never-ratio"/>
+                    <ref name="sentence-marker" />
+                </element>
+                <element name="first-letters">
+                    <a:documentation>Capitalize first letter</a:documentation>
+                    <ref name="random-always-never-ratio"/>
+                </element>
+            </interleave>
         </element>
     </define>
     <define name="toolbox">
@@ -273,6 +350,16 @@
             <data type="string"/>
         </attribute>
     </define>
+    <define name="regexp-attribute-group">
+        <a:documentation>Regexp choice that applies a matchPattern on given column</a:documentation>
+        <interleave>
+           <attribute name="name">
+               <value>regexp</value>
+           </attribute>
+           <ref name="matchPattern" />
+           <ref name="source" />
+        </interleave>
+    </define>
     <define name="splitter">
         <element name="splitter">
             <choice>
@@ -287,11 +374,7 @@
                     </attribute>
                 </group>
                 <group>
-                    <attribute name="name">
-                        <value>regexp</value>
-                    </attribute>
-                    <ref name="matchPattern" />
-                    <ref name="source" />
+                   <ref name="regexp-attribute-group" />
                 </group>
                 <attribute name="name">
                     <a:documentation>Each empty line represent a new passage</a:documentation>
