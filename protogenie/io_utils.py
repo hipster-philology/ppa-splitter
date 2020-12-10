@@ -8,7 +8,8 @@ def get_name(output_folder, dataset, filename):
 
 def add_sentence(
         output_folder: str, dataset: str, filename: str,
-        sentence: List[str], source_marker: str, output_marker: str):
+        sentence: List[str], source_marker: str, output_marker: str,
+        subfolder: bool = True):
     """ Write a sentence in the given dataset
 
     :param output_folder:
@@ -17,7 +18,10 @@ def add_sentence(
     :param sentence:
     :return:
     """
-    filename = get_name(output_folder, dataset, filename)
+    if subfolder:
+        filename = get_name(output_folder, dataset, filename)
+    else:
+        filename = get_name(output_folder, "", filename)
     if not os.path.isfile(filename):
         mode = "w"
     else:

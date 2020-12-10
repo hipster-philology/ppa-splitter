@@ -39,7 +39,7 @@ class _CorpusDispatched:
 
 def split_files(
         config: ProtogenieConfiguration, output_folder: str, dev_ratio: float, test_ratio: float,
-        verbose: bool = True):
+        verbose: bool = True, no_split: bool = False):
     """ Dispatch sentence for each file in files
 
     :param config: Configuration for PPA Splitter
@@ -47,6 +47,7 @@ def split_files(
     :param dev_ratio: Ratio of data to put in dev
     :param test_ratio: Ratio of data to put in test
     :param verbose: Verbosity (Adds some print during process)
+    :param no_split: Do not apply splitting
 
     :yield: File, Dispatch stats about file
     """
@@ -63,7 +64,7 @@ def split_files(
            yield from _single_file_dispatch(
                file, current_config=current_config, memory=memory,
                dev_ratio=dev_ratio, test_ratio=test_ratio, output_folder=output_folder,
-               config=config, verbose=verbose
+               config=config, verbose=verbose, no_split=no_split
            )
 
     if memory:
@@ -245,7 +246,12 @@ def glue(config: ProtogenieConfiguration, output_folder: str,
                             continue
 
                         mapped = line.split(config.output.column_marker)
-                        mapped = [mapped[index] for index in header_map]
+                        if not "".join(mapped).strip():
+                            continue
+                        try:
+                            mapped = [mapped[index] for index in header_map]
+                        except IndexError:
+                            raise ValueError(f"Line {line_numb} failing in {file}: {mapped}")
                         tokens[-1] += 1
                         sentence.append(mapped)
 
@@ -257,8 +263,8 @@ def glue(config: ProtogenieConfiguration, output_folder: str,
                         max_int = math.ceil(reduce * max_int)
 
                     for sentence in sentences[:max_int]:
-                        if dataset_type == "dev":
-                            print(sentence)
+                        #if dataset_type == "dev":
+                        #    print(sentence)
                         write_sentence(sentence, out)
 
                 yield dataset_type, basename, len(sentences[:max_int]), sum(tokens[:max_int])
@@ -298,7 +304,7 @@ def _preview(file: str, current_config: CorpusConfiguration) -> Tuple[List[str],
 def _single_file_dispatch(
         file: str, current_config: CorpusConfiguration,
         config: ProtogenieConfiguration, output_folder: str, dev_ratio: float, test_ratio: float,
-        verbose: bool = True, memory=None
+        verbose: bool = True, memory=None, no_split: bool = False
 ):
     # We do two passes here
     #  1. The first one is used to collect informations about the file. In order to not keep data in memory,
@@ -313,27 +319,34 @@ def _single_file_dispatch(
     header_line, unit_counts, empty_lines, lines = _preview(file, current_config)
 
     if verbose:
-        print("{unit_count} {unit_name} to dispatch in {filename} ({lines} full, {lines_empty} empty)".format(
-            filename=file, unit_name=current_config.unit_name, unit_count=unit_counts,
-            lines_empty=empty_lines, lines=lines
-        ))
+        if no_split is True:
+            print("Not splitting file {filename}".format(filename=file))
+        else:
+            print("{unit_count} {unit_name} to dispatch in {filename} ({lines} full, {lines_empty} empty)".format(
+                filename=file, unit_name=current_config.unit_name, unit_count=unit_counts,
+                lines_empty=empty_lines, lines=lines
+            ))
 
     # We set up numbers based on the ratio
     # In order to do that, we get to use
-    target_dataset = current_config.build_dataset_dispatch_list(
-        units_count=unit_counts,
-        test_ratio=test_ratio,
-        dev_ratio=dev_ratio
-    )
+    if no_split is False:
+        target_dataset = current_config.build_dataset_dispatch_list(
+            units_count=unit_counts,
+            test_ratio=test_ratio,
+            dev_ratio=dev_ratio
+        )
 
-    # We set up a dictionary of token count to print nice
-    #  information later
-    training_tokens = {"test": 0, "dev": 0, "train": 0}
+        # We set up a dictionary of token count to print nice
+        #  information later
+        training_tokens = {"test": 0, "dev": 0, "train": 0}
+    else:
+        training_tokens = {"output": 0}
 
     # ToDo: When file splitter, the number of lines should be passed here probably ? Or is reset the issue ? ...
 
     current_config.splitter.reset()
-    current_config.splitter.set_targets(target_dataset)
+    if not no_split:
+        current_config.splitter.set_targets(target_dataset)
 
     created_files = set()
 
@@ -351,11 +364,15 @@ def _single_file_dispatch(
 
             sentence.append(line)
             if current_config.splitter(line, reader=current_config.reader):
-                dataset = target_dataset.pop(0)
+                if no_split:
+                    dataset = "output"
+                else:
+                    dataset = target_dataset.pop(0)
 
                 if memory:
                     memory.writerow([file, "{}-{}".format(line_no - len(sentence) + 1 - blanks, line_no), dataset])
                     blanks = 0
+
                 sentence = [x for x in sentence if x.strip()]
                 add_sentence(
                     output_folder=output_folder,
@@ -363,7 +380,8 @@ def _single_file_dispatch(
                     filename=file,
                     sentence=sentence,
                     source_marker=current_config.column_marker,
-                    output_marker=config.output.column_marker
+                    output_marker=config.output.column_marker,
+                    subfolder=not no_split
                 )
                 training_tokens[dataset] += len(sentence)
                 sentence = []
@@ -372,9 +390,12 @@ def _single_file_dispatch(
         if len(sentence):
             try:
                 dataset = target_dataset.pop(0)
-                print("last dataset ?")
+                # print("last dataset ?")
             except Exception:
-                dataset = "train"
+                if no_split:
+                    dataset = "output"
+                else:
+                    dataset = "train"
 
             if memory:
                 memory.writerow([file, "{}-{}".format(line_no - len(sentence) + 1 - blanks, line_no), dataset])
@@ -385,14 +406,16 @@ def _single_file_dispatch(
                 filename=file,
                 sentence=sentence,
                 source_marker=current_config.column_marker,
-                output_marker=config.output.column_marker
+                output_marker=config.output.column_marker,
+                subfolder=not no_split
             )
             training_tokens[dataset] += len(sentence)
 
     created_files.update(
         _add_header(
             output_folder=output_folder, training_tokens=training_tokens, header_line=header_line,
-            current_config=current_config, file=file
+            current_config=current_config, file=file,
+            subfolder=not no_split
         )
     )
 
@@ -406,11 +429,16 @@ def _single_file_dispatch(
 
 def _add_header(output_folder: str, file: str,
                 training_tokens: Dict[str, int], current_config: CorpusConfiguration,
-                header_line: List[str]) -> Set[str]:
+                header_line: List[str],
+                subfolder: bool = True
+                ) -> Set[str]:
     files = set()
     for dataset, tokens in training_tokens.items():
         if tokens:
-            trg = get_name(output_folder, dataset, file)
+            if subfolder:
+                trg = get_name(output_folder, dataset, file)
+            else:
+                trg = get_name(output_folder, "", file)
             files.add(trg)  # We add the file to the one we created
             with open(trg) as f:
                 content = f.read()

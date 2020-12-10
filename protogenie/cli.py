@@ -32,12 +32,13 @@ def cli_scheme(dest):
 @main.command("build")
 @click.argument("file", type=click.Path(exists=True, file_okay=True, dir_okay=False))
 @click.option("--output", default="./output", type=str, help="Directory where the output should be built")
+@click.option("-n", "--no-split", default=False, is_flag=True, help="Does not apply splitting to files")
 @click.option("-c", "--clear", default=False, is_flag=True, help="Clear the output directory")
 @click.option("-t", "--train", "train", default=0.8, type=float, help="Percentage of data to use for training")
 @click.option("-d", "--dev", "dev", default=0., type=float, help="Percentage of data to use for dev set")
 @click.option("-e", "--test", "test", default=0.2, type=float, help="Percentage of data to use for test set")
 @click.option("-v", "--verbose", default=False, is_flag=True, help="Print text level stats")
-def cli_build(file, output, clear=False, train=0.8, dev=.0, test=0.2, verbose=False):
+def cli_build(file, output="./output", no_split=False, clear=False, train=0.8, dev=.0, test=0.2, verbose=False):
     """ Uses [FILE] to split and pre-process a training corpus for NLP Tasks. File should follow the schema, see
     protogeneia get-scheme"""
 
@@ -49,6 +50,9 @@ def cli_build(file, output, clear=False, train=0.8, dev=.0, test=0.2, verbose=Fa
             shutil.rmtree(output, ignore_errors=True)
         else:
             print("\tData were not removed")
+    if no_split:
+        train, test, dev = 1, 0, 0
+
     dispatch(
         config=file,
         train=train,
@@ -122,18 +126,19 @@ def dispatch(
     """
 
     train, test, dev = check_ratio(train, test, dev)
-    print(train, test, dev)
     config = ProtogenieConfiguration.from_xml(config)
+    no_split = sorted([train, test, dev]) == [0, 0, 1]
 
     os.makedirs(output_dir, exist_ok=True)
-    for subset in ["dev", "test", "train"]:
-        os.makedirs(os.path.join(output_dir, subset), exist_ok=True)
+    if not no_split:  # No split
+        for subset in ["dev", "test", "train"]:
+            os.makedirs(os.path.join(output_dir, subset), exist_ok=True)
 
     print("=============")
     print("Processing...")
     # I run over each files
     for file, ratios in split_files(output_folder=output_dir, verbose=verbose, dev_ratio=dev, test_ratio=test,
-                                    config=config):
+                                    config=config, no_split=no_split):
 
         print("{} has been transformed".format(file))
         for key, value in ratios.items():

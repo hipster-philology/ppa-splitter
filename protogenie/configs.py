@@ -1,17 +1,17 @@
 from typing import Dict, Optional, Any, Type, List
 import os.path
-import xml.etree.ElementTree as ET
+import lxml.etree as ET
 from copy import deepcopy
 
 from .splitters import RegExpSplitter, LineSplitter, TokenWindowSplitter, FileSplitter, _SplitterPrototype
 from .reader import Reader
-from .postprocessing import Disambiguation, ReplacementSet, Skip, PostProcessing, Clitic
+from .postprocessing import Disambiguation, ReplacementSet, Skip, PostProcessing, Clitic, Capitalize
 from .toolbox import RomanNumeral
 import datetime
 from dataclasses import dataclass
 Splitter = Type[_SplitterPrototype]
 
-PostProcessingClasses = [Disambiguation, ReplacementSet, Skip, RomanNumeral, Clitic]
+PostProcessingClasses = [Disambiguation, ReplacementSet, Skip, RomanNumeral, Clitic, Capitalize]
 
 
 @dataclass
@@ -126,6 +126,8 @@ class ProtogenieConfiguration:
     def from_xml(cls, filepath: str) -> "ProtogenieConfiguration":
         with open(filepath) as f:
             xml = ET.parse(f)
+            inc = ET.XInclude()
+            inc(xml.getroot())
         kwargs = {}
 
         # Get readers
@@ -146,7 +148,6 @@ class ProtogenieConfiguration:
         # Parse corpora configurations
         corpora = {}
         for corpus in xml.findall("./corpora/corpus"):
-
             corpora[corpus.get("path")] = CorpusConfiguration(**{
                 "column_marker": corpus.get("column_marker"),
                 "splitter": corpus.find("splitter").get("name"),

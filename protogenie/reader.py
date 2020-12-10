@@ -55,7 +55,7 @@ class Reader(object):
         self._header = [
             self.map_to[key]
             for key in line.strip().split(self.column_marker)
-            if key
+            if key and key in self.map_to
         ]
         return self._header
 

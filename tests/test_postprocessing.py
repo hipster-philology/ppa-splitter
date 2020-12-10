@@ -2,6 +2,37 @@ from .helpers import _TestHelper
 
 
 class TestPostProcessing(_TestHelper):
+    def _general_config_write(self, postprocessing: str) -> str:
+        with open("./tests/test_config/generated.xml", "w") as f:
+            f.write("""<?xml version="1.0" encoding="UTF-8"?>
+<?xml-model href="../../protogenie/schema.rng" schematypens="http://relaxng.org/ns/structure/1.0"?>
+<config>
+    <output column_marker="TAB">
+        <header name="order">
+            <key>token</key>
+            <key>lemma</key>
+            <key>pos</key>
+        </header>
+    </output>
+    <postprocessing>
+        {postprocessing}
+    </postprocessing>
+    <default-header>
+        <header type="order">
+            <key map-to="token">2</key>
+            <key map-to="lemma">0</key>
+            <key map-to="POS">1</key>
+        </header>
+    </default-header>
+    <corpora>
+        <corpus path="../test_data/generic.tsv" column_marker="TAB">
+            <splitter name="empty_line"/>
+            <header type="default" />
+        </corpus>
+    </corpora>
+</config>""".format(postprocessing=postprocessing))
+        return "./tests/test_config/generated.xml"
+
     def test_disambiguation(self):
         self._dispatch(
             output_dir="./tests/tests_output/",
@@ -142,10 +173,162 @@ class TestPostProcessing(_TestHelper):
                     self.assertTrue(line["lemma"].endswith("界ne"), "Clitic has been passed to lemma with glue")
                     self.assertFalse(line["token"].endswith("界ne"), "Clitic has been passed to token without glue")
                 tokens += 1
-                print(line)
 
-        print(tokens)
         self.assertEqual(tokens, 300*0.8 * 0.8,
                          "There should be 80% of total tokens, and 20% of that should have been removed (2 clitics"
                          "every 10 words)")
         self.assertEqual(clitics, 300*0.8*0.2, "There should be 2 clitics for 8 words")
+
+
+class TestCapitalize(TestPostProcessing):
+    """ Check that capitalization are dealt with correctly"""
+
+    def test_capitalize_base(self):
+        out, config = self._dispatch(
+            output_dir="./tests/tests_output/",
+            train=0.8,
+            dev=0.1,
+            test=0.1,
+            config="./tests/test_config/capitalize.xml"
+        )
+        # Checking all corpora just to be sure
+        tokens = 0
+
+        sentences = [[]]
+        for line in self.read_file("train", "capitalize.tsv"):
+            if not line:
+                sentences.append([])
+            else:
+                sentences[-1].append(line)
+                tokens += 1
+
+        sentences = [s for s in sentences if s]
+        self.assertEqual(
+            [True] * len(sentences),
+            [s[0]["token"][0].isupper() for s in sentences],
+            "The first word of every sentence should be capitalized"
+        )
+
+        self.assertEqual(tokens, 500 * 0.8, "There should be 80% of total tokens")
+
+        # Test half
+
+    def test_capitalize_random(self):
+        conf = self._general_config_write("""
+         <capitalize column-token="token">
+            <first-word when="random">
+                <sentence-marker name="empty_line"/>
+            </first-word>
+            <first-letters when="never"/>
+        </capitalize>""")
+        out, config = self._dispatch(
+            output_dir="./tests/tests_output/",
+            train=0.8,
+            dev=0.1,
+            test=0.1,
+            config=conf
+        )
+        tokens = 0
+        sentences = [[]]
+        for line in self.read_file("train", "generic.tsv"):
+            if not line:
+                sentences.append([])
+            else:
+                sentences[-1].append(line)
+                tokens += 1
+
+        sentences = [s for s in sentences if s]
+
+        half_toks = round(500 * 0.8 * 0.5)
+        half_chunks = round(half_toks / 10)
+        self.assertEqual(
+            sorted([True] * half_chunks + [False] * half_chunks),
+            sorted([s[0]["token"][0].isupper() for s in sentences]),
+            "The first word of every sentence should be capitalized"
+        )
+
+        self.assertEqual(tokens, 500 * 0.8, "There should be 80% of total tokens")
+
+    def test_random_caps(self):
+        conf = self._general_config_write("""
+         <capitalize column-token="token">
+            <first-word when="never">
+                <sentence-marker name="empty_line"/>
+            </first-word>
+            <first-letters when="ratio" ratio="0.3"/>
+        </capitalize>""")
+
+        out, config = self._dispatch(
+            output_dir="./tests/tests_output/",
+            train=0.8,
+            dev=0.1,
+            test=0.1,
+            config=conf
+        )
+
+        tokens = 0
+        sentences = [[]]
+        for line in self.read_file("train", "generic.tsv"):
+            if not line:
+                sentences.append([])
+            else:
+                sentences[-1].append(line)
+                tokens += 1
+
+        sentences = [s for s in sentences if s]
+
+        nb_tokens = round(500 * 0.8)
+        nb_chunks = round(500 * 0.8 / 10)
+
+        self.assertNotEqual(
+            sorted([True] * nb_chunks),
+            sorted([s[0]["token"][0].isupper() for s in sentences]),
+            "The first word of every sentence should not be capitalized. There is a very small chance that"
+            "this distribution happened. The test would fail in this case..."
+        )
+        self.assertEqual(
+            round(0.3*nb_tokens),
+            [t["token"][0].isupper() for s in sentences for t in s].count(True),
+            "30% of tokens should be Capitalized"
+        )
+
+        self.assertEqual(tokens, 500 * 0.8, "There should be 80% of total tokens")
+
+    def test_capitalized_and_indicator(self):
+        """Ensure that replacement of caps by lowercase letter + SPECIAL CHAR is done"""
+        conf = self._general_config_write("""
+         <capitalize column-token="token" caps-to-utf8-marker="true">
+            <first-word when="never">
+                <sentence-marker name="empty_line"/>
+            </first-word>
+            <first-letters when="ratio" ratio="0.5"/>
+        </capitalize>""")
+
+        out, config = self._dispatch(
+            output_dir="./tests/tests_output/",
+            train=0.8,
+            dev=0.1,
+            test=0.1,
+            config=conf
+        )
+
+        tokens = 0
+        sentences = [[]]
+        for line in self.read_file("train", "generic.tsv"):
+            if not line:
+                sentences.append([])
+            else:
+                sentences[-1].append(line)
+                tokens += 1
+
+        sentences = [s for s in sentences if s]
+
+        nb_tokens = round(500 * 0.8 * 0.5)
+
+        self.assertEqual(
+            nb_tokens,
+            [t["token"][0].islower() and t["token"][1] == "🨁" for s in sentences for t in s].count(True),
+            "30% of tokens should be Capitalized"
+        )
+
+        self.assertEqual(tokens, 500 * 0.8, "There should be 80% of total tokens")

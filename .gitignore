@@ -6,6 +6,7 @@ memory.csv
 memory*.csv
 new.yaml
 tests/tests_output
+tests/test_config/generated.xml
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

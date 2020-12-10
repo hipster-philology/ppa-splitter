@@ -361,3 +361,40 @@ It will produces the following output
 
 The glue token is not applied on token, the lemma value is transfered to the previous row and the POS is lost.
 `@glue_char` is used to concatenate columns such as `lemma` here,
+
+### Capitalization
+
+This post-processing function capitalizes (*ie.* makes the first letter of words upper-case) randomly or always first 
+words of chunks (*ie.* sentences) and random letters inside. It also provides an uppercase mask creation, where it
+replaces uppercased letters with lowercase letters the [Neutral Chess Queen UTF-8 character](https://www.compart.com/fr/unicode/U+1FA01).
+
+The model is the following:
+
+```xml
+<config>
+    <!--...-->
+    <postprocessing>
+        <capitalize column-token="token" caps-to-utf8-marker="true">
+            <first-word when="never">
+                <sentence-marker name="empty_line"/>
+            </first-word>
+            <first-letters when="ratio" ratio="0.5"/>
+        </capitalize>
+    </postprocessing>
+    <!--...-->
+</config>
+```
+
+1. <kbd>column-token</kbd> specifies the name of the column containing the raw form of the tokens
+2. (Optional) <kbd>column-lemma</kbd> does the same thing for lemma
+3. <kbd>caps-to-utf8-marker</kbd> activates masking uppercased letters.
+4. <kbd>first-word</kbd> is activated when <kbd>when</kbd> is set to a value between `always`, `random` and `ratio`.
+    1. <kbd>when="ratio"</kbd> requires a second <kbd>ratio</kbd> value which needs to be a float between .0 and 1.0 (a percentage basically)
+    2. <kbd>when=random</kbd> is basically a shortcut for the latter where ratio=0.5
+    3. To identify sentences, you need to set up <kbd>sentence-marker</kbd>
+        1. It can be <kbd>name="empty_line"</kbd>, in which case chunks are separated by empty line (default output)
+        2. It can be <kbd>name="regexp"</kbd>, in which case it takes a `@matchPattern` attribute (for regular expression)
+        and a column that needs to be matched in `@source`, *.ie* `<sentence-matcher name="regexp" matchPattern="[\.!?]" source="lemma" />`
+5. <kbd>first-letters</kbd> works with the same when/ratio attribute than <kbd>first-word</kbd>. It applies said capitalization
+    to random words inside chunks.
+     
